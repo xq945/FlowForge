@@ -68,4 +68,17 @@ public interface NodeExecutionMapper extends BaseMapper<NodeExecution> {
                AND status = 'RETRY_WAIT'
             """)
     int releaseForRetry(@Param("id") Long id);
+
+    /** 实例超时：把尚未执行的节点统一作废，让实例能收敛到终态。 */
+    @Update("""
+            UPDATE node_execution
+               SET status = 'CANCELLED',
+                   error_code = 'EXECUTION_TIMEOUT',
+                   error_message = '工作流执行超时',
+                   finished_at = NOW(3),
+                   updated_at = NOW(3)
+             WHERE execution_id = #{executionId}
+               AND status IN ('WAITING','READY','RETRY_WAIT')
+            """)
+    int cancelPendingNodes(@Param("executionId") Long executionId);
 }

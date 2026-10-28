@@ -94,6 +94,25 @@ services:
       retries: 30
       start_period: 40s
 
+  # XXL-JOB 调度中心：周期触发的调度与任务管理界面
+  # 表结构来自官方 doc/db/tables_xxl_job.sql，已初始化到 xxl_job 库
+  xxl-job-admin:
+    image: xuxueli/xxl-job-admin:2.4.1
+    container_name: flowforge-xxl-job
+    restart: unless-stopped
+    environment:
+      PARAMS: >-
+        --spring.datasource.url=jdbc:mysql://mysql:3306/xxl_job?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+        --spring.datasource.username=root
+        --spring.datasource.password=root
+        --xxl.job.accessToken=default_token
+      TZ: Asia/Shanghai
+    ports:
+      - "8090:8080"
+    depends_on:
+      mysql:
+        condition: service_healthy
+
 volumes:
   mysql-data:
   redis-data:

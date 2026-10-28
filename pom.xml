@@ -35,7 +35,7 @@
         <jjwt.version>0.12.7</jjwt.version>
         <resilience4j.version>2.4.0</resilience4j.version>
         <testcontainers.version>1.21.4</testcontainers.version>
-        <xxl-job.version>3.5.0</xxl-job.version>
+        <xxl-job.version>2.4.1</xxl-job.version>
     </properties>
 
     <dependencyManagement>
@@ -92,8 +92,10 @@
             </dependency>
             <dependency>
                 <groupId>io.github.resilience4j</groupId>
-                <artifactId>resilience4j-spring-boot3</artifactId>
+                <artifactId>resilience4j-bom</artifactId>
                 <version>${resilience4j.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.testcontainers</groupId>

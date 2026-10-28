@@ -40,11 +40,14 @@ public class ExecutionService {
         this.attemptMapper = attemptMapper;
     }
 
-    /** 创建并通过本地线程池立即开始推进。 */
+    /**
+     * 创建执行实例。
+     *
+     * <p>起始节点的可执行消息已经在创建事务里写进 Outbox，由发布器投递，
+     * 这里不需要（也不应该）再去驱动执行。
+     */
     public Long start(CreateExecutionCommand command) {
-        Long executionId = engine.createExecution(command);
-        engine.dispatchReadyNodes(executionId);
-        return executionId;
+        return engine.createExecution(command);
     }
 
     public PageResult<ExecutionSummary> list(Long ownerId, Long workflowId, String status, long page, long size) {

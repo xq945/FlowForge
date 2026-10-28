@@ -50,4 +50,15 @@ public interface WorkflowExecutionMapper extends BaseMapper<WorkflowExecution> {
                         @Param("target") String target,
                         @Param("errorCode") String errorCode,
                         @Param("errorMessage") String errorMessage);
+
+    /** 超过实例级截止时间仍在运行的实例。 */
+    @Select("""
+            SELECT * FROM workflow_execution
+             WHERE status = 'RUNNING'
+               AND deadline_at IS NOT NULL
+               AND deadline_at < NOW(3)
+             ORDER BY deadline_at
+             LIMIT #{limit}
+            """)
+    java.util.List<WorkflowExecution> selectTimedOut(@Param("limit") int limit);
 }

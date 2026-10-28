@@ -22,6 +22,26 @@ spring:
         namespace: ${NACOS_NAMESPACE:}
         username: ${NACOS_USERNAME:nacos}
         password: ${NACOS_PASSWORD:nacos}
+  rabbitmq:
+    host: ${RABBITMQ_HOST:127.0.0.1}
+    port: ${RABBITMQ_PORT:5674}
+    username: ${RABBITMQ_USER:flowforge}
+    password: ${RABBITMQ_PASSWORD:flowforge}
+    # 发布确认：只有 Broker 明确 ack 且消息没有被退回，才认为真正投递成功
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    template:
+      mandatory: true
+    listener:
+      simple:
+        # 手动 ACK：业务处理并提交后才确认
+        acknowledge-mode: manual
+        prefetch: 10
+        concurrency: 2
+        max-concurrency: 8
+        # 关闭 Spring 内置原地重试，重试统一走延迟队列，避免消息在队列里打转
+        retry:
+          enabled: false
 
 mybatis-plus:
   configuration:

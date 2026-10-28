@@ -12,8 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
  *
  * <p>只做**读**：取版本快照。调度服务不写工作流库，也不参与工作流编辑。
  */
-@FeignClient(name = "flowforge-workflow-service", path = "/internal/workflows",
-        configuration = FeignAuthConfig.class)
+@FeignClient(name = "flowforge-workflow-service", path = "/internal/workflows")
 public interface WorkflowClient {
 
     @GetMapping("/{workflowId}/snapshot")

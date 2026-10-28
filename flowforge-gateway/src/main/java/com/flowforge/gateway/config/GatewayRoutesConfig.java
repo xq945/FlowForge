@@ -54,6 +54,14 @@ public class GatewayRoutesConfig {
                                 .dedupeResponseHeader("X-Trace-Id", "RETAIN_FIRST"))
                         .uri("lb://" + SCHEDULER_SERVICE))
 
+                // 周期任务配置：cron 管理与启停
+                .route("scheduler-schedules", route -> route
+                        .path("/api/schedules/**")
+                        .filters(filter -> filter
+                                .stripPrefix(1)
+                                .dedupeResponseHeader("X-Trace-Id", "RETAIN_FIRST"))
+                        .uri("lb://" + SCHEDULER_SERVICE))
+
                 // 执行记录查询：读操作落在执行服务
                 .route("execution-query", route -> route
                         .path("/api/executions", "/api/executions/**")

@@ -14,8 +14,7 @@ import java.util.Map;
  * <p>创建实例的请求里带上完整快照，执行服务不需要再回查工作流服务，
  * 服务之间的同步调用链到此为止。
  */
-@FeignClient(name = "flowforge-execution-service", path = "/internal/executions",
-        configuration = FeignAuthConfig.class)
+@FeignClient(name = "flowforge-execution-service", path = "/internal/executions")
 public interface ExecutionClient {
 
     @PostMapping

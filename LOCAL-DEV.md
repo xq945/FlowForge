@@ -20,6 +20,8 @@
 | RabbitMQ 控制台 | 15674 | 15672 | 账号 `flowforge` / `flowforge` |
 | Nacos 客户端 | 8848 / 9848 | 8848 / 9848 | HTTP / gRPC |
 | Nacos 控制台 | 8849 | 8080 | 打开后按页面引导初始化管理员账户 |
+| XXL-JOB 调度中心 | 8090 | 8080 | `admin` / `123456` |
+| XXL-JOB 执行器 | 9999 | - | 由 scheduler-service 启动 |
 | user-service | 8081 | - | |
 | gateway | 8083 | - | 8080/8082 常被其它服务占用 |
 | workflow-service | 8084 | - | |

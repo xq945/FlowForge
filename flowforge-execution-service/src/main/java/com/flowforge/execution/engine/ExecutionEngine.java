@@ -18,11 +18,10 @@ import com.flowforge.execution.mapper.ExecutionAttemptMapper;
 import com.flowforge.execution.mapper.ExecutionEventMapper;
 import com.flowforge.execution.mapper.NodeExecutionMapper;
 import com.flowforge.execution.mapper.WorkflowExecutionMapper;
+import com.flowforge.execution.messaging.OutboxWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DuplicateKeyException;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.support.TransactionTemplate;
 
@@ -65,7 +64,7 @@ public class ExecutionEngine {
     private final ExecutionEventMapper eventMapper;
     private final Map<NodeType, NodeExecutor> executors;
     private final TransactionTemplate transactionTemplate;
-    private final ThreadPoolTaskExecutor nodeExecutorPool;
+    private final OutboxWriter outboxWriter;
     private final ObjectMapper objectMapper;
 
     public ExecutionEngine(WorkflowExecutionMapper executionMapper,
@@ -74,7 +73,7 @@ public class ExecutionEngine {
                            ExecutionEventMapper eventMapper,
                            List<NodeExecutor> nodeExecutors,
                            TransactionTemplate transactionTemplate,
-                           @Qualifier("nodeExecutorPool") ThreadPoolTaskExecutor nodeExecutorPool,
+                           OutboxWriter outboxWriter,
                            ObjectMapper objectMapper) {
         this.executionMapper = executionMapper;
         this.nodeMapper = nodeMapper;
@@ -83,7 +82,7 @@ public class ExecutionEngine {
         this.executors = nodeExecutors.stream()
                 .collect(Collectors.toMap(NodeExecutor::type, Function.identity()));
         this.transactionTemplate = transactionTemplate;
-        this.nodeExecutorPool = nodeExecutorPool;
+        this.outboxWriter = outboxWriter;
         this.objectMapper = objectMapper;
     }
 
@@ -138,13 +137,15 @@ public class ExecutionEngine {
         execution.setStartedAt(now);
         executionMapper.insert(execution);
 
+        List<NodeExecution> startNodes = new ArrayList<>();
         for (NodeSpec spec : nodes) {
             NodeExecution node = new NodeExecution();
             node.setExecutionId(execution.getId());
             node.setNodeKey(spec.nodeKey());
             node.setNodeType(spec.nodeType().toUpperCase());
             node.setNodeName(spec.name() == null ? spec.nodeKey() : spec.name());
-            node.setStatus(roots.contains(spec.nodeKey()) ? NodeStatus.READY.name() : NodeStatus.WAITING.name());
+            boolean isRoot = roots.contains(spec.nodeKey());
+            node.setStatus(isRoot ? NodeStatus.READY.name() : NodeStatus.WAITING.name());
             node.setRetryCount(0);
             node.setMaxRetry(spec.retryMaxOrDefault());
             node.setRetryInitialMs(spec.retryInitialOrDefault());
@@ -153,6 +154,9 @@ public class ExecutionEngine {
             node.setAttemptNo(0);
             node.setConfigSnapshot(writeJson(spec.config() == null ? Map.of() : spec.config()));
             nodeMapper.insert(node);
+            if (isRoot) {
+                startNodes.add(node);
+            }
         }
 
         appendEvent(execution.getId(), null, "EXECUTION_CREATED",
@@ -160,27 +164,24 @@ public class ExecutionEngine {
                         "versionNo", command.versionNo(),
                         "totalNodes", nodes.size()));
 
-        log.info("执行实例创建 executionId={} workflowId={} versionNo={} nodes={}",
-                execution.getId(), command.workflowId(), command.versionNo(), nodes.size());
+        // 起始节点的可执行消息与实例创建在同一个事务里落进 Outbox
+        for (NodeExecution startNode : startNodes) {
+            outboxWriter.appendNodeReady(execution.getId(), startNode.getId(),
+                    command.versionNo(), startNode.getNodeKey());
+        }
+
+        log.info("执行实例创建 executionId={} workflowId={} versionNo={} nodes={} 起始节点={}",
+                execution.getId(), command.workflowId(), command.versionNo(), nodes.size(), startNodes.size());
         return execution.getId();
     }
 
     // ------------------------------------------------------------------ 调度与执行
 
-    /** 把当前所有 READY 节点提交到线程池。 */
-    public void dispatchReadyNodes(Long executionId) {
-        List<NodeExecution> ready = nodeMapper.selectList(new LambdaQueryWrapper<NodeExecution>()
-                .eq(NodeExecution::getExecutionId, executionId)
-                .eq(NodeExecution::getStatus, NodeStatus.READY.name()));
-        for (NodeExecution node : ready) {
-            nodeExecutorPool.execute(() -> runNode(node.getId()));
-        }
-    }
-
     /**
      * 执行单个节点。
      *
-     * <p>这是消息消费的等价入口：阶段四接入 RabbitMQ 后，消费者调用的仍是这个方法。
+     * <p>由消息消费者调用。方法本身不负责「下一个节点由谁执行」——
+     * 后继节点通过 Outbox 投递，投递、确认、重试都交给消息层。
      */
     public void runNode(Long nodeExecutionId) {
         if (nodeMapper.claimForRun(nodeExecutionId) == 0) {
@@ -207,10 +208,7 @@ public class ExecutionEngine {
                     false, false, null, null);
         }
 
-        List<Long> newlyReady = completeNode(node, result);
-        for (Long next : newlyReady) {
-            nodeExecutorPool.execute(() -> runNode(next));
-        }
+        completeNode(node, result);
     }
 
     /**
@@ -266,7 +264,16 @@ public class ExecutionEngine {
                 return List.of();
             }
 
-            return advance(execution);
+            List<Long> newlyReady = advance(execution);
+            // 后继节点的可执行消息与节点终态在同一事务内写进 Outbox
+            for (Long readyId : newlyReady) {
+                NodeExecution ready = nodeMapper.selectById(readyId);
+                if (ready != null) {
+                    outboxWriter.appendNodeReady(execution.getId(), ready.getId(),
+                            execution.getVersionNo(), ready.getNodeKey());
+                }
+            }
+            return newlyReady;
         });
     }
 
@@ -388,15 +395,58 @@ public class ExecutionEngine {
             finalStatus = ExecutionStatus.SUCCESS.name();
         }
 
-        if (executionMapper.finishIfRunning(execution.getId(), finalStatus,
-                errorCode, SensitiveDataMasker.maskAndTruncate(errorMessage, MAX_SUMMARY_LENGTH)) > 0) {
+        String maskedError = SensitiveDataMasker.maskAndTruncate(errorMessage, MAX_SUMMARY_LENGTH);
+        if (executionMapper.finishIfRunning(execution.getId(), finalStatus, errorCode, maskedError) > 0) {
             appendEvent(execution.getId(), null, "EXECUTION_FINISHED",
                     Map.of("status", finalStatus));
+            // 终结事件同样走 Outbox，保证「实例已终结」与「通知已发出」最终一致
+            outboxWriter.appendWorkflowFinished(execution.getId(), execution.getOwnerId(),
+                    finalStatus, errorCode, maskedError);
             log.info("执行实例终结 executionId={} status={}", execution.getId(), finalStatus);
         }
     }
 
     // ------------------------------------------------------------------ 重试
+
+    /**
+     * 实例级超时收敛。
+     *
+     * <p>不依赖内存计时器：进程崩了计时器就没了，只有数据库里的 {@code deadline_at} 是可信的。
+     * 超时后把尚未执行的节点统一作废，正在跑的节点任其结束（结果会被丢弃），
+     * 保证实例一定能收敛到终态而不是永远挂在 RUNNING。
+     */
+    public int timeoutExpired(int limit) {
+        List<WorkflowExecution> expired = executionMapper.selectTimedOut(limit);
+        int count = 0;
+        for (WorkflowExecution candidate : expired) {
+            Boolean expiredNow = transactionTemplate.execute(status -> expireOne(candidate.getId()));
+            if (Boolean.TRUE.equals(expiredNow)) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private boolean expireOne(Long executionId) {
+        WorkflowExecution execution = executionMapper.selectForUpdate(executionId);
+        if (execution == null || !ExecutionStatus.RUNNING.name().equals(execution.getStatus())) {
+            return false;
+        }
+
+        int cancelled = nodeMapper.cancelPendingNodes(executionId);
+        int updated = executionMapper.finishIfRunning(executionId,
+                ExecutionStatus.TIMED_OUT.name(), "EXECUTION_TIMEOUT", "工作流执行超过截止时间");
+        if (updated == 0) {
+            return false;
+        }
+
+        appendEvent(executionId, null, "EXECUTION_TIMED_OUT",
+                Map.of("cancelledNodes", cancelled));
+        outboxWriter.appendWorkflowFinished(executionId, execution.getOwnerId(),
+                ExecutionStatus.TIMED_OUT.name(), "EXECUTION_TIMEOUT", "工作流执行超过截止时间");
+        log.warn("执行实例超时 executionId={} 作废未执行节点数={}", executionId, cancelled);
+        return true;
+    }
 
     /** 退避到期，把节点放回待执行。多实例下靠条件更新保证只有一个实例放行成功。 */
     public void releaseDueRetries(int batchSize) {
@@ -407,9 +457,17 @@ public class ExecutionEngine {
                 .last("LIMIT " + Math.max(1, batchSize)));
 
         for (NodeExecution node : due) {
-            if (nodeMapper.releaseForRetry(node.getId()) > 0) {
-                nodeExecutorPool.execute(() -> runNode(node.getId()));
+            if (nodeMapper.releaseForRetry(node.getId()) <= 0) {
+                continue;
             }
+            transactionTemplate.executeWithoutResult(status -> {
+                WorkflowExecution execution = executionMapper.selectById(node.getExecutionId());
+                if (execution == null || ExecutionStatus.valueOf(execution.getStatus()).isTerminal()) {
+                    return;
+                }
+                outboxWriter.appendNodeReady(node.getExecutionId(), node.getId(),
+                        execution.getVersionNo(), node.getNodeKey());
+            });
         }
     }
 
