@@ -20,8 +20,11 @@
 | RabbitMQ 控制台 | 15674 | 15672 | 账号 `flowforge` / `flowforge` |
 | Nacos 客户端 | 8848 / 9848 | 8848 / 9848 | HTTP / gRPC |
 | Nacos 控制台 | 8849 | 8080 | 打开后按页面引导初始化管理员账户 |
-| gateway | 8083 | - | 8080 常被其它服务占用 |
 | user-service | 8081 | - | |
+| gateway | 8083 | - | 8080/8082 常被其它服务占用 |
+| workflow-service | 8084 | - | |
+| scheduler-service | 8085 | - | |
+| execution-service | 8086 | - | |
 
 ## 3. 启动基础设施
 
@@ -41,14 +44,17 @@ docker compose ps
 基础设施就绪后，在两个终端分别启动：
 
 ```bash
-# 终端 1
-mvn -pl flowforge-user-service spring-boot:run
-
-# 终端 2
-mvn -pl flowforge-gateway spring-boot:run
+mvn -pl flowforge-user-service        spring-boot:run
+mvn -pl flowforge-workflow-service    spring-boot:run
+mvn -pl flowforge-execution-service   spring-boot:run
+mvn -pl flowforge-scheduler-service   spring-boot:run
+mvn -pl flowforge-gateway             spring-boot:run
 ```
 
 或直接运行各自的 `*Application` 主类。默认激活 `local` profile，连接上面映射到宿主机的端口。
+
+> 服务之间通过 Nacos 服务名互相调用，**启动顺序无强制要求**，但网关路由依赖下游已注册，
+> 首次调用前请确认目标服务已出现在 Nacos 服务列表中。
 
 ## 5. 验证
 
@@ -70,6 +76,32 @@ curl http://localhost:8083/api/users/me \
 # 4. 不带 token 应返回 401
 curl -i http://localhost:8083/api/users/me
 ```
+
+### 5.1 工作流闭环
+
+```bash
+# 1. 创建工作流（草稿）
+curl -X POST http://localhost:8083/api/workflows \
+  -H "Content-Type: application/json" -H "Authorization: Bearer <token>" \
+  --data-binary @workflow.json
+
+# 2. 发布（严格 DAG 校验通过后生成不可变版本）
+curl -X POST http://localhost:8083/api/workflows/1/publish -H "Authorization: Bearer <token>"
+
+# 3. 手动触发，requestId 是幂等键：重复点击只会产生一个实例
+curl -X POST http://localhost:8083/api/executions \
+  -H "Content-Type: application/json" -H "Authorization: Bearer <token>" \
+  -d '{"workflowId":1,"requestId":"req-001"}'
+
+# 4. 查看执行详情（含每个节点状态与失败原因）
+curl http://localhost:8083/api/executions/1 -H "Authorization: Bearer <token>"
+
+# 5. 查看某节点的每次尝试
+curl http://localhost:8083/api/executions/1/nodes/1/attempts -H "Authorization: Bearer <token>"
+```
+
+> Windows 下直接用 `-d` 传中文会因终端编码变成 GBK，导致「请求体格式错误」。
+> 把 JSON 写进 UTF-8 文件再用 `--data-binary @file` 即可。
 
 ## 6. 配置说明
 

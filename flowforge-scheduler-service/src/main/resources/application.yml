@@ -1,0 +1,50 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: flowforge-scheduler-service
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+    openfeign:
+      client:
+        config:
+          default:
+            # 同步调用只用于读快照与创建实例，超时必须短：网关与上游都在等这个结果
+            connect-timeout: 2000
+            read-timeout: 5000
+            logger-level: basic
+
+flowforge:
+  security:
+    jwt:
+      issuer: flowforge
+      ttl: 2h
+      secret: ${FLOWFORGE_JWT_SECRET:}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+  level:
+    root: INFO
+    com.flowforge: DEBUG

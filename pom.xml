@@ -16,6 +16,9 @@
         <module>flowforge-common</module>
         <module>flowforge-gateway</module>
         <module>flowforge-user-service</module>
+        <module>flowforge-workflow-service</module>
+        <module>flowforge-execution-service</module>
+        <module>flowforge-scheduler-service</module>
     </modules>
 
     <properties>

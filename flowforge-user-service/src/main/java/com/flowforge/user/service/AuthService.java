@@ -13,8 +13,8 @@ import com.flowforge.user.entity.SysUserRole;
 import com.flowforge.user.mapper.SysRoleMapper;
 import com.flowforge.user.mapper.SysUserMapper;
 import com.flowforge.user.mapper.SysUserRoleMapper;
-import com.flowforge.user.security.JwtService;
-import com.flowforge.user.security.LoginUser;
+import com.flowforge.common.security.JwtTokenService;
+import com.flowforge.common.security.LoginUser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -45,13 +45,13 @@ public class AuthService {
     private final SysRoleMapper roleMapper;
     private final SysUserRoleMapper userRoleMapper;
     private final PasswordEncoder passwordEncoder;
-    private final JwtService jwtService;
+    private final JwtTokenService jwtService;
 
     public AuthService(SysUserMapper userMapper,
                        SysRoleMapper roleMapper,
                        SysUserRoleMapper userRoleMapper,
                        PasswordEncoder passwordEncoder,
-                       JwtService jwtService) {
+                       JwtTokenService jwtService) {
         this.userMapper = userMapper;
         this.roleMapper = roleMapper;
         this.userRoleMapper = userRoleMapper;

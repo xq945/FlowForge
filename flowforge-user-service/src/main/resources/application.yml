@@ -37,6 +37,10 @@ mybatis-plus:
 
 flowforge:
   security:
+    # 追加到默认放行项（健康检查、接口文档）之上
+    whitelist:
+      - /auth/register
+      - /auth/login
     jwt:
       issuer: flowforge
       ttl: 2h

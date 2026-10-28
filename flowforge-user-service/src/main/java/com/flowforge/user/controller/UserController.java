@@ -4,7 +4,7 @@ import com.flowforge.common.api.ApiResponse;
 import com.flowforge.common.api.BizException;
 import com.flowforge.common.api.ErrorCode;
 import com.flowforge.user.dto.UserProfile;
-import com.flowforge.user.security.LoginUser;
+import com.flowforge.common.security.LoginUser;
 import com.flowforge.user.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;

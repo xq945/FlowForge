@@ -1,0 +1,10 @@
+spring:
+  cloud:
+    nacos:
+      discovery:
+        server-addr: nacos:8848
+
+flowforge:
+  security:
+    jwt:
+      secret: ${FLOWFORGE_JWT_SECRET}

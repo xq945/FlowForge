@@ -25,6 +25,14 @@ public enum ErrorCode {
     ACCOUNT_DISABLED("U1003", "账号已被禁用", 403),
     ACCOUNT_LOCKED("U1004", "账号已锁定，请稍后再试", 423),
 
+    // ---- 工作流 ----
+    WORKFLOW_NOT_FOUND("W0404", "工作流不存在", 404),
+    VERSION_NOT_FOUND("W0405", "工作流版本不存在", 404),
+    WORKFLOW_NAME_TAKEN("W1001", "同名工作流已存在", 409),
+    WORKFLOW_STATE_CONFLICT("W1002", "当前工作流状态不允许该操作", 409),
+    WORKFLOW_INVALID("W1003", "工作流定义不合法", 400),
+    WORKFLOW_NOT_PUBLISHED("W1004", "工作流尚未发布，无法执行", 409),
+
     // ---- 系统 ----
     INTERNAL_ERROR("B0500", "服务器内部错误", 500),
     SERVICE_UNAVAILABLE("B0503", "依赖服务暂时不可用", 503);
