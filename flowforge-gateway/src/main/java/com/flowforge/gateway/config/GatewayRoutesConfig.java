@@ -26,6 +26,7 @@ public class GatewayRoutesConfig {
     private static final String WORKFLOW_SERVICE = "flowforge-workflow-service";
     private static final String SCHEDULER_SERVICE = "flowforge-scheduler-service";
     private static final String EXECUTION_SERVICE = "flowforge-execution-service";
+    private static final String NOTIFICATION_SERVICE = "flowforge-notification-service";
 
     @Bean
     public RouteLocator flowForgeRoutes(RouteLocatorBuilder builder) {
@@ -61,6 +62,14 @@ public class GatewayRoutesConfig {
                                 .stripPrefix(1)
                                 .dedupeResponseHeader("X-Trace-Id", "RETAIN_FIRST"))
                         .uri("lb://" + SCHEDULER_SERVICE))
+
+                // 通知中心
+                .route("notification-service", route -> route
+                        .path("/api/notifications/**")
+                        .filters(filter -> filter
+                                .stripPrefix(1)
+                                .dedupeResponseHeader("X-Trace-Id", "RETAIN_FIRST"))
+                        .uri("lb://" + NOTIFICATION_SERVICE))
 
                 // 执行记录查询：读操作落在执行服务
                 .route("execution-query", route -> route

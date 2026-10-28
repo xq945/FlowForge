@@ -58,6 +58,24 @@ mvn -pl flowforge-gateway             spring-boot:run
 > 服务之间通过 Nacos 服务名互相调用，**启动顺序无强制要求**，但网关路由依赖下游已注册，
 > 首次调用前请确认目标服务已出现在 Nacos 服务列表中。
 
+### 4.1 启动前端
+
+```bash
+cd flowforge-frontend
+npm install
+npm run dev
+```
+
+访问 http://localhost:5173 。开发服务器把 `/api` 代理到网关（8083），不需要额外配置跨域。
+
+| 命令 | 说明 |
+| --- | --- |
+| `npm run dev` | 开发服务器，带热更新 |
+| `npm run build` | 类型检查 + 生产构建，产物在 `dist/` |
+
+> Vite 默认可能只监听 `[::1]`，本项目已在 `vite.config.ts` 显式设置 `host: true`，
+> 确保 `127.0.0.1` 与局域网 IP 都能访问。
+
 ## 5. 验证
 
 ```bash

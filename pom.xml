@@ -19,6 +19,7 @@
         <module>flowforge-workflow-service</module>
         <module>flowforge-execution-service</module>
         <module>flowforge-scheduler-service</module>
+        <module>flowforge-notification-service</module>
     </modules>
 
     <properties>
