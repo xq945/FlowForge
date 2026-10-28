@@ -1,0 +1,6 @@
+# 本机开发：先执行 deploy/docker-compose.yml 拉起 MySQL / Redis / Nacos
+flowforge:
+  security:
+    jwt:
+      # 仅供本地开发；docker/生产必须通过 FLOWFORGE_JWT_SECRET 注入
+      secret: flowforge-local-dev-only-secret-key-0123456789abcdef

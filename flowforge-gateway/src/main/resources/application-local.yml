@@ -1,0 +1,12 @@
+# 本机开发：基础设施跑在 docker compose 映射端口上，应用跑在 IDE 里
+spring:
+  data:
+    redis:
+      host: 127.0.0.1
+      port: 6380
+
+flowforge:
+  gateway:
+    jwt:
+      # 仅供本地开发；docker/生产必须通过 FLOWFORGE_JWT_SECRET 注入
+      secret: flowforge-local-dev-only-secret-key-0123456789abcdef

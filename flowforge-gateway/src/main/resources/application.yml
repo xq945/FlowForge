@@ -1,0 +1,48 @@
+server:
+  # 8080 / 8082 常被本机其它服务占用，网关固定 8083
+  port: 8083
+
+spring:
+  application:
+    name: flowforge-gateway
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6380}
+      timeout: 2s
+
+flowforge:
+  gateway:
+    whitelist:
+      - /api/auth/login
+      - /api/auth/register
+      - /actuator/health
+      - /actuator/info
+    jwt:
+      issuer: flowforge
+      secret: ${FLOWFORGE_JWT_SECRET:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: when_authorized
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} %-5level [%X{traceId:-}] %logger{36} - %msg%n"
+  level:
+    root: INFO
+    com.flowforge: DEBUG

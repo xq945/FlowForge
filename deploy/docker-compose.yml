@@ -1,0 +1,101 @@
+# FlowForge 基础环境（阶段二）
+#
+# 端口刻意避开本机常见默认端口及其它项目占用：MySQL 3307、Redis 6380、RabbitMQ 5674/15674、Nacos 控制台 8849。
+# 本地开发时应用跑在 IDE 里，通过 application-local.yml 连接这些映射端口；
+# 容器化部署时改用 compose 服务名（见各服务的 application-docker.yml）。
+#
+# 首次启动会执行 ./mysql/init 下的脚本；修改建表脚本后需要 down -v 重建数据卷才会重新执行。
+
+name: flowforge
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: flowforge-mysql
+    restart: unless-stopped
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      TZ: Asia/Shanghai
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    container_name: flowforge-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    container_name: flowforge-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: flowforge
+      RABBITMQ_DEFAULT_PASS: flowforge
+      TZ: Asia/Shanghai
+    ports:
+      - "5674:5672"
+      - "15674:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  nacos:
+    image: nacos/nacos-server:v3.0.3
+    container_name: flowforge-nacos
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      # Nacos 3.x 不再自动创建内置账户，本地开发关闭鉴权以保证开箱可用。
+      # 生产环境必须开启 NACOS_AUTH_ENABLE 并单独初始化管理员账户。
+      # token 与 identity 即使不启用鉴权也必须提供，否则启动脚本直接退出（exit 255）。
+      NACOS_AUTH_ENABLE: "false"
+      NACOS_AUTH_TOKEN: "Zmxvd2ZvcmdlLWxvY2FsLW5hY29zLWF1dGgtdG9rZW4tMjAyNi1jaGFuZ2UtbWU="
+      NACOS_AUTH_IDENTITY_KEY: "serverIdentity"
+      NACOS_AUTH_IDENTITY_VALUE: "flowforge-local"
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+      TZ: Asia/Shanghai
+    ports:
+      - "8848:8848"   # 客户端注册/配置端口（HTTP）
+      - "9848:9848"   # gRPC 端口，3.x 客户端必需
+      - "8849:8080"   # 3.x 控制台
+    volumes:
+      - nacos-data:/home/nacos/data
+    healthcheck:
+      # 3.x 移除了 v1 健康接口，控制台根路径可返回 200，用它判断进程就绪
+      test: ["CMD-SHELL", "curl -sf -o /dev/null http://127.0.0.1:8080/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+volumes:
+  mysql-data:
+  redis-data:
+  rabbitmq-data:
+  nacos-data:
