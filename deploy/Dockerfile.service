@@ -1,0 +1,22 @@
+# FlowForge 业务服务通用镜像
+#
+# 采用「宿主机先打包、容器只装 JRE + jar」的方式：
+# 容器内跑 Maven 会重复下载全部依赖，构建一次要好几分钟；
+# 把编译留在开发机上，镜像构建就是毫秒级，且镜像本身只有 JRE 大小。
+#
+# 用法（compose 里通过 build.args 指定模块）：
+#   docker build -f deploy/Dockerfile.service \
+#     --build-arg JAR_FILE=flowforge-user-service/target/flowforge-user-service-0.1.0-SNAPSHOT.jar .
+
+FROM eclipse-temurin:21-jre-alpine
+
+ARG JAR_FILE
+WORKDIR /app
+COPY ${JAR_FILE} app.jar
+
+ENV TZ=Asia/Shanghai \
+    SPRING_PROFILES_ACTIVE=docker \
+    JAVA_OPTS="-XX:MaxRAMPercentage=70 -XX:+UseG1GC"
+
+# 容器内统一使用 docker profile：通过 compose 服务名访问 Nacos / MySQL / RabbitMQ
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/app.jar --spring.profiles.active=docker"]

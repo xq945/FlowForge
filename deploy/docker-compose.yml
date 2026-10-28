@@ -113,6 +113,118 @@ services:
       mysql:
         condition: service_healthy
 
+  # ==================================================================
+  # 应用服务（可选）：docker compose --profile app up -d 启动全栈
+  # 日常开发只需基础设施，应用在 IDE 里跑，避免每次改代码都重建镜像。
+  # ==================================================================
+
+  flowforge-user-service:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        JAR_FILE: flowforge-user-service/target/flowforge-user-service-0.1.0-SNAPSHOT.jar
+    container_name: flowforge-user
+    restart: unless-stopped
+    environment:
+      FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+    depends_on:
+      mysql: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  flowforge-workflow-service:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        JAR_FILE: flowforge-workflow-service/target/flowforge-workflow-service-0.1.0-SNAPSHOT.jar
+    container_name: flowforge-workflow
+    restart: unless-stopped
+    environment:
+      FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+    depends_on:
+      mysql: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  flowforge-execution-service:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        JAR_FILE: flowforge-execution-service/target/flowforge-execution-service-0.1.0-SNAPSHOT.jar
+    container_name: flowforge-execution
+    restart: unless-stopped
+    environment:
+      FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+    depends_on:
+      mysql: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  flowforge-scheduler-service:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        JAR_FILE: flowforge-scheduler-service/target/flowforge-scheduler-service-0.1.0-SNAPSHOT.jar
+    container_name: flowforge-scheduler
+    restart: unless-stopped
+    environment:
+      FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+      XXL_JOB_ADMIN: http://xxl-job-admin:8080/xxl-job-admin
+    depends_on:
+      mysql: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+      xxl-job-admin: { condition: service_started }
+
+  flowforge-notification-service:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        JAR_FILE: flowforge-notification-service/target/flowforge-notification-service-0.1.0-SNAPSHOT.jar
+    container_name: flowforge-notification
+    restart: unless-stopped
+    environment:
+      FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+    depends_on:
+      mysql: { condition: service_healthy }
+      rabbitmq: { condition: service_healthy }
+      nacos: { condition: service_healthy }
+
+  flowforge-gateway:
+    profiles: ["app"]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.service
+      args:
+        JAR_FILE: flowforge-gateway/target/flowforge-gateway-0.1.0-SNAPSHOT.jar
+    container_name: flowforge-gateway
+    restart: unless-stopped
+    environment:
+      FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+    depends_on:
+      nacos: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  flowforge-frontend:
+    profiles: ["app"]
+    build:
+      context: ../flowforge-frontend
+      dockerfile: Dockerfile
+    container_name: flowforge-frontend
+    restart: unless-stopped
+    ports:
+      # 全栈模式只对外暴露前端；接口经 Nginx 反代到网关，与生产拓扑一致
+      - "8088:80"
+    depends_on:
+      flowforge-gateway: { condition: service_started }
+
 volumes:
   mysql-data:
   redis-data:
