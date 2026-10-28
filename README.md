@@ -1,0 +1,102 @@
+# FlowForge
+
+**智能任务编排与执行平台**
+
+用户通过 Web 页面把若干任务节点按依赖关系连成自动化工作流，由平台负责任务的触发、调度、执行、重试、记录与通知。
+
+## 背景
+
+自动化执行需求的复杂之处，不在于"跑一个任务"，而在于跑完之后的各种意外：节点失败要不要重试、重试几次、间隔多久；进程崩在"数据库已提交、消息还没发出去"的缝隙里怎么办；两个调度实例同时扫到同一条到期任务怎么办；用户手抖点了两次执行，是不是会跑出两份实例；工作流改版发布后，昨天启动的执行该用新逻辑还是旧逻辑。
+
+FlowForge 的目标是把这些问题**显式地建模**并给出可验证的答案，而不是用一堆布尔字段和分布式锁把它们盖住。
+
+典型场景——一个每日执行的工作流：
+
+1. 定时触发工作流。
+2. 执行 HTTP 请求节点，获取外部数据。
+3. 执行条件判断节点，根据结果决定是否继续。
+4. 执行后续业务节点。
+5. 某个节点失败时，按重试策略重新执行。
+6. 保存工作流与节点的执行记录。
+7. 向用户发送成功或失败通知。
+
+## 核心设计约束
+
+| 约束 | 说明 |
+| --- | --- |
+| DAG 工作流 | 发布时检测环、悬空依赖与非法节点配置；发布后生成不可变版本 |
+| 版本绑定 | 执行实例绑定启动时的版本，后续编辑不影响在途执行 |
+| 显式状态机 | 工作流、节点、重试各有明确状态与合法迁移，不用分散布尔字段 |
+| 多实例安全 | 调度与执行均假设存在多个实例，重复提交、并发扫描、并发消费都必须可验证 |
+| 消息可靠投递 | Transactional Outbox + 发布确认 + 消费幂等，不假设"只投递一次" |
+| 事实来源唯一 | Redis 只做缓存与临时协调，执行状态以数据库为准 |
+| 可恢复 | 每个环节崩溃后都有对账或补偿路径，而不是只能人工修数据 |
+
+## 技术栈
+
+| 层次 | 选型 |
+| --- | --- |
+| 语言与框架 | Java 21、Spring Boot 3.x、Spring Cloud、Spring MVC |
+| 数据访问 | MyBatis-Plus、MySQL 8、Redis |
+| 微服务 | Nacos（注册与配置）、Spring Cloud Gateway、OpenFeign、Resilience4j |
+| 消息与调度 | RabbitMQ、XXL-JOB |
+| 安全 | Spring Security、JWT |
+| 文档 | Springdoc OpenAPI |
+| 前端 | Vue 3、TypeScript、Vite、Pinia、Vue Router、Axios、Element Plus |
+| 测试 | JUnit 5、Mockito、Spring Boot Test、Testcontainers |
+| 构建与部署 | Maven 多模块、Docker、Docker Compose、SLF4J + Logback |
+
+组件版本在阶段一开始前统一确认兼容关系并在 Maven 中锁定，不盲从最新版本，也不引入没有实际使用场景的组件。
+
+## 服务边界
+
+| 服务 | 职责 |
+| --- | --- |
+| `flowforge-gateway` | 统一入口、路由、基础限流、追踪 ID、统一认证校验 |
+| `flowforge-user-service` | 注册登录、JWT 签发校验、角色权限、账号状态 |
+| `flowforge-workflow-service` | 工作流定义、版本管理、节点与依赖配置、DAG 校验、发布 |
+| `flowforge-scheduler-service` | 手动执行入口、XXL-JOB 周期触发、到期扫描、防重复调度 |
+| `flowforge-execution-service` | 消费节点消息、状态机推进、重试退避、故障恢复 |
+| `flowforge-notification-service` | 站内通知、发送记录、失败重试、幂等处理 |
+
+网关鉴权不替代业务服务自身的归属校验与权限校验。
+
+## 开发计划
+
+| 阶段 | 内容 | 状态 |
+| --- | --- | --- |
+| 一 | 需求与架构设计 | 待启动 |
+| 二 | 基础工程搭建（多模块、Nacos、Gateway、用户服务、Docker Compose） | 未开始 |
+| 三 | 核心业务开发（工作流定义、DAG 校验、手动执行闭环） | 未开始 |
+| 四 | 微服务可靠性（XXL-JOB、Outbox、幂等、重试、死信、熔断） | 未开始 |
+| 五 | 前端开发 | 未开始 |
+| 六 | 部署、测试与面试准备 | 未开始 |
+
+每个阶段完成后先汇报结果再进入下一阶段。
+
+## 目录结构（规划）
+
+```
+flowforge-common/               公共异常、响应模型、工具
+flowforge-gateway/              API 网关
+flowforge-user-service/         用户与权限
+flowforge-workflow-service/     工作流定义与版本
+flowforge-scheduler-service/    定时调度
+flowforge-execution-service/    执行引擎
+flowforge-notification-service/ 通知中心
+flowforge-frontend/             Vue 3 前端
+deploy/                         Docker Compose、数据库初始化、部署配置
+docs/                           架构、接口、设计决策与测试报告
+```
+
+## 文档
+
+- [项目开发提示词](docs/00-项目开发提示词.md)：项目整体要求与分阶段开发规范，是各阶段实现的基准。
+
+## 开发状态
+
+> 项目处于**设计阶段**，尚未开始编码。当前仓库包含项目定位、开发提示词与后续的架构设计文档。
+
+## 许可
+
+许可证待定。

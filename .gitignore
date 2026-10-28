@@ -1,0 +1,61 @@
+# ---- 密钥与凭证：本项目的绝对红线 ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+credentials/
+
+# ---- 通用 ----
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+*.tmp
+.cache/
+tmp/
+out/
+coverage/
+
+# ---- Java / Maven 多模块 ----
+target/
+*.class
+*.jar
+*.war
+!.mvn/wrapper/maven-wrapper.jar
+.mvn/wrapper/maven-wrapper.jar
+.gradle/
+
+# ---- Node / Vue 前端 ----
+node_modules/
+.pnpm-store/
+dist/
+dist-ssr/
+*.local
+*.tsbuildinfo
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- 本地运行产物 ----
+logs/
+nacos-data/
+xxl-job/logs/
+docker/mysql/data/
+docker/redis/data/
+docker/rabbitmq/data/
+
+# ---- IDE ----
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.iml
+*.swp
+*.suo
