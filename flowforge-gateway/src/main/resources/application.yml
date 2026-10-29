@@ -3,17 +3,27 @@ server:
   port: 8083
 
 spring:
+  config:
+    import:
+      - optional:nacos:flowforge-common.yaml?group=FLOWFORGE&refreshEnabled=true&preference=remote
+      - optional:nacos:flowforge-gateway.yaml?group=FLOWFORGE&refreshEnabled=true&preference=remote
   application:
     name: flowforge-gateway
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
   cloud:
     nacos:
+      config:
+        # 前缀必须是 spring.cloud.nacos：starter 里的 NacosPropertiesPrefixProvider
+        # 返回的就是它，写成 spring.nacos 不会生效
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:}
-        username: ${NACOS_USERNAME:nacos}
-        password: ${NACOS_PASSWORD:nacos}
+        # 本地 Nacos 关闭了鉴权，留空即不登录；开启鉴权的环境用环境变量注入
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
@@ -30,6 +40,13 @@ flowforge:
     jwt:
       issuer: flowforge
       secret: ${FLOWFORGE_JWT_SECRET:}
+    # 本地默认值；Nacos 的 flowforge-gateway.yaml 会覆盖同名项且可热更新
+    rate-limit:
+      enabled: true
+      replenish-rate: 20
+      burst-capacity: 40
+      requested-tokens: 1
+      ttl: 60s
 
 management:
   endpoints:

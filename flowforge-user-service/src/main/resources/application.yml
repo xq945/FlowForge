@@ -2,6 +2,10 @@ server:
   port: 8081
 
 spring:
+  config:
+    import:
+      - optional:nacos:flowforge-common.yaml?group=FLOWFORGE&refreshEnabled=true&preference=remote
+      - optional:nacos:flowforge-user-service.yaml?group=FLOWFORGE&refreshEnabled=true&preference=remote
   application:
     name: flowforge-user-service
   profiles:
@@ -18,11 +22,17 @@ spring:
       validation-timeout: 2000
   cloud:
     nacos:
+      config:
+        # 前缀必须是 spring.cloud.nacos：starter 里的 NacosPropertiesPrefixProvider
+        # 返回的就是它，写成 spring.nacos 不会生效
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
       discovery:
         server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
         namespace: ${NACOS_NAMESPACE:}
-        username: ${NACOS_USERNAME:nacos}
-        password: ${NACOS_PASSWORD:nacos}
+        # 本地 Nacos 关闭了鉴权，留空即不登录；开启鉴权的环境用环境变量注入
+        username: ${NACOS_USERNAME:}
+        password: ${NACOS_PASSWORD:}
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}

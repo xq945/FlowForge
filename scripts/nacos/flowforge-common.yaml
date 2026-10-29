@@ -1,0 +1,8 @@
+# 所有服务共享的配置，dataId = flowforge-common.yaml
+#
+# 这里只放「改了应该立刻生效」的运行参数，不放连接信息与密钥：
+# 本地 Nacos 关闭了鉴权，同网段任何进程都能读到这些内容。
+logging:
+  level:
+    root: INFO
+    com.flowforge: DEBUG

@@ -4,6 +4,8 @@ spring:
     url: jdbc:mysql://mysql:3306/flowforge_user?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
   cloud:
     nacos:
+      config:
+        server-addr: nacos:8848
       discovery:
         server-addr: nacos:8848
   data:

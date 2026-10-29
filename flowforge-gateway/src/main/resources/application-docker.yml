@@ -2,6 +2,8 @@
 spring:
   cloud:
     nacos:
+      config:
+        server-addr: nacos:8848
       discovery:
         server-addr: nacos:8848
   data:

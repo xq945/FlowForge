@@ -131,10 +131,42 @@ curl http://localhost:8083/api/executions/1/nodes/1/attempts -H "Authorization: 
 | MySQL 地址 | `MYSQL_HOST` / `MYSQL_PORT` | `127.0.0.1:3307` | |
 | MySQL 账号 | `MYSQL_USER` / `MYSQL_PASSWORD` | `flowforge` / `flowforge` | |
 | Redis 地址 | `REDIS_HOST` / `REDIS_PORT` | `127.0.0.1:6380` | |
-| Nacos 地址 | `NACOS_SERVER_ADDR` | `127.0.0.1:8848` | |
-| Nacos 账号 | `NACOS_USERNAME` / `NACOS_PASSWORD` | `nacos` / `nacos` | |
+| Nacos 地址 | `NACOS_SERVER_ADDR` | `127.0.0.1:8848` | 服务发现与配置中心共用 |
+| Nacos 账号 | `NACOS_USERNAME` / `NACOS_PASSWORD` | 空 | 本地关闭鉴权，留空即不登录 |
 
 `local` 与 `docker` 两个 profile 的差异只在于**地址**：本地连映射端口，容器内连服务名。
+
+### 6.1 配置中心（可选）
+
+六个服务会从 Nacos 读取 `flowforge-common.yaml` 和 `flowforge-<服务名>.yaml`（分组 `FLOWFORGE`）。
+这一步是**可选**的：import 带 `optional:` 前缀，Nacos 里没有配置时服务照常用本地 yml 启动。
+
+```bash
+# 把初始配置写进 Nacos（本地关闭了管理端鉴权，免 token）
+./scripts/init-nacos-config.sh
+
+# 控制台：http://localhost:8849 ，命名空间 public，分组 FLOWFORGE
+```
+
+写进 Nacos 的只有**可热更新**的参数：日志级别、网关限流阈值。
+改完保存后不用重启，网关日志会出现 `Receive Nacos config change` 与 `Refresh keys changed`。
+
+```bash
+# 演示热更新：把突发容量改小，然后连续请求观察 429
+curl -X POST http://127.0.0.1:8848/nacos/v3/admin/cs/config \
+  --data-urlencode "dataId=flowforge-gateway.yaml" \
+  --data-urlencode "groupName=FLOWFORGE" \
+  --data-urlencode "namespaceId=public" \
+  --data-urlencode "type=yaml" \
+  --data-urlencode "content=flowforge:
+  gateway:
+    rate-limit:
+      enabled: true
+      replenish-rate: 1
+      burst-capacity: 3"
+```
+
+`@Scheduled` 的扫描间隔（重试扫描、超时扫描、Outbox 发布）**不能**热更新，改它们需要重启服务。
 
 ## 7. 常见问题
 

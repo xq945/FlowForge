@@ -75,7 +75,11 @@ public class JwtAuthGlobalFilter implements GlobalFilter, Ordered {
                     .header(AuthHeaders.USER_NAME, String.valueOf(claims.getOrDefault("username", "")))
                     .header(AuthHeaders.USER_ROLES, joinRoles(claims.get("roles")))
                     .build();
-            return chain.filter(exchange.mutate().request(request).build());
+            ServerWebExchange authenticated = exchange.mutate().request(request).build();
+            // 身份另存一份到 attribute：请求头可以被客户端伪造，白名单路径上的头
+            // 也不会被这里覆盖，只有 attribute 能证明「这个用户 ID 是网关验过的」
+            authenticated.getAttributes().put(GatewayAttributes.USER_ID, claims.getSubject());
+            return chain.filter(authenticated);
         } catch (JwtException | IllegalArgumentException ex) {
             log.debug("JWT 校验失败 path={} reason={}", path, ex.getMessage());
             return reject(exchange);

@@ -6,6 +6,8 @@ spring:
     port: 5672
   cloud:
     nacos:
+      config:
+        server-addr: nacos:8848
       discovery:
         server-addr: nacos:8848
 

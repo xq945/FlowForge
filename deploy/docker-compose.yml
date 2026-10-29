@@ -74,6 +74,11 @@ services:
       # 生产环境必须开启 NACOS_AUTH_ENABLE 并单独初始化管理员账户。
       # token 与 identity 即使不启用鉴权也必须提供，否则启动脚本直接退出（exit 255）。
       NACOS_AUTH_ENABLE: "false"
+      # NACOS_AUTH_ENABLE 只关掉了 nacos.core.auth.enabled，
+      # 3.x 的管理端与控制台是另外两个开关，不关掉发布配置会 403（User not found），
+      # 控制台也无法登录。仅本地开发关闭。
+      NACOS_AUTH_ADMIN_ENABLE: "false"
+      NACOS_AUTH_CONSOLE_ENABLE: "false"
       NACOS_AUTH_TOKEN: "Zmxvd2ZvcmdlLWxvY2FsLW5hY29zLWF1dGgtdG9rZW4tMjAyNi1jaGFuZ2UtbWU="
       NACOS_AUTH_IDENTITY_KEY: "serverIdentity"
       NACOS_AUTH_IDENTITY_VALUE: "flowforge-local"
@@ -129,6 +134,7 @@ services:
     restart: unless-stopped
     environment:
       FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+      NACOS_SERVER_ADDR: nacos:8848
     depends_on:
       mysql: { condition: service_healthy }
       nacos: { condition: service_healthy }
@@ -144,6 +150,7 @@ services:
     restart: unless-stopped
     environment:
       FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+      NACOS_SERVER_ADDR: nacos:8848
     depends_on:
       mysql: { condition: service_healthy }
       nacos: { condition: service_healthy }
@@ -159,6 +166,7 @@ services:
     restart: unless-stopped
     environment:
       FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+      NACOS_SERVER_ADDR: nacos:8848
     depends_on:
       mysql: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
@@ -175,6 +183,7 @@ services:
     restart: unless-stopped
     environment:
       FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+      NACOS_SERVER_ADDR: nacos:8848
       XXL_JOB_ADMIN: http://xxl-job-admin:8080/xxl-job-admin
     depends_on:
       mysql: { condition: service_healthy }
@@ -192,6 +201,7 @@ services:
     restart: unless-stopped
     environment:
       FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+      NACOS_SERVER_ADDR: nacos:8848
     depends_on:
       mysql: { condition: service_healthy }
       rabbitmq: { condition: service_healthy }
@@ -208,6 +218,7 @@ services:
     restart: unless-stopped
     environment:
       FLOWFORGE_JWT_SECRET: ${FLOWFORGE_JWT_SECRET:-flowforge-docker-dev-secret-key-0123456789ab}
+      NACOS_SERVER_ADDR: nacos:8848
     depends_on:
       nacos: { condition: service_healthy }
       redis: { condition: service_healthy }

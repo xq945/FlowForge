@@ -1,0 +1,15 @@
+# 网关私有配置，dataId = flowforge-gateway.yaml
+#
+# 改完保存后网关不重启即可生效：
+# ConfigurationPropertiesRebinder 会把新值原地绑回 RateLimitProperties，
+# 过滤器每个请求都从该对象读参数。
+flowforge:
+  gateway:
+    rate-limit:
+      enabled: true
+      # 每秒补充令牌数，即稳态 QPS
+      replenish-rate: 20
+      # 桶容量，即允许的突发量
+      burst-capacity: 40
+      requested-tokens: 1
+      ttl: 60s
